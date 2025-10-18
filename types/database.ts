@@ -61,6 +61,42 @@ export type QuizRow = {
   created_at: string;
 };
 
+export type MindMapRow = {
+  id: string;
+  user_id: string | null;
+  title: string;
+  description: string | null;
+  thumbnail_data: string | null;
+  is_exported: boolean;
+  exported_document_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NodeType = "root" | "topic" | "subtopic" | "note";
+
+export type MindMapNodeRow = {
+  id: string;
+  mind_map_id: string;
+  label: string;
+  content: string | null;
+  node_type: NodeType;
+  position_x: number;
+  position_y: number;
+  style: Json;
+  created_at: string;
+};
+
+export type MindMapEdgeRow = {
+  id: string;
+  mind_map_id: string;
+  source_node_id: string;
+  target_node_id: string;
+  label: string | null;
+  style: Json;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -160,6 +196,69 @@ export type Database = {
           spec?: Json | null;
           result?: Json | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      mind_maps: {
+        Row: MindMapRow;
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          title: string;
+          description?: string | null;
+          thumbnail_data?: string | null;
+          is_exported?: boolean;
+          exported_document_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          description?: string | null;
+          thumbnail_data?: string | null;
+          is_exported?: boolean;
+          exported_document_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      mind_map_nodes: {
+        Row: MindMapNodeRow;
+        Insert: {
+          id?: string;
+          mind_map_id: string;
+          label: string;
+          content?: string | null;
+          node_type?: NodeType;
+          position_x: number;
+          position_y: number;
+          style?: Json;
+          created_at?: string;
+        };
+        Update: {
+          label?: string;
+          content?: string | null;
+          node_type?: NodeType;
+          position_x?: number;
+          position_y?: number;
+          style?: Json;
+        };
+        Relationships: [];
+      };
+      mind_map_edges: {
+        Row: MindMapEdgeRow;
+        Insert: {
+          id?: string;
+          mind_map_id: string;
+          source_node_id: string;
+          target_node_id: string;
+          label?: string | null;
+          style?: Json;
+          created_at?: string;
+        };
+        Update: {
+          label?: string | null;
+          style?: Json;
         };
         Relationships: [];
       };

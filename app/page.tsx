@@ -11,15 +11,19 @@ import {
   DocumentManager,
   type DocumentSummary,
 } from "@/components/documents/document-manager";
+import { MindMapPanel } from "@/components/mindmap/mind-map-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Smartphone } from "lucide-react";
 
 type SessionTracker = {
   chat?: string | null;
   quiz?: string | null;
   study?: string | null;
 };
+
+type TabValue = keyof SessionTracker | "documents" | "mindmaps";
 
 async function fetchDocuments(): Promise<DocumentSummary[]> {
   const response = await fetch("/api/documents");
@@ -31,11 +35,22 @@ async function fetchDocuments(): Promise<DocumentSummary[]> {
 }
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<keyof SessionTracker>("chat");
+  const [activeTab, setActiveTab] = useState<TabValue>("chat");
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [docError, setDocError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionTracker>({});
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const refreshDocuments = async () => {
     try {
@@ -57,10 +72,10 @@ export default function Home() {
     void refreshDocuments();
   }, []);
 
-  const activeSession = useMemo(
-    () => sessions[activeTab] ?? null,
-    [sessions, activeTab]
-  );
+  const activeSession = useMemo(() => {
+    if (activeTab === "documents" || activeTab === "mindmaps") return null;
+    return sessions[activeTab] ?? null;
+  }, [sessions, activeTab]);
 
   return (
     <main className="flex flex-1 flex-col gap-8">
@@ -71,8 +86,8 @@ export default function Home() {
               StudyBuddy AI
             </h1>
             <p className="text-sm text-muted-foreground">
-              A single workspace for tutoring, adaptive quizzes, and focused
-              study sessions.
+              A single workspace for tutoring, adaptive quizzes, focused
+              study sessions, and visual mind mapping.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -87,11 +102,21 @@ export default function Home() {
           </div>
         </div>
         <Separator />
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as keyof SessionTracker)}>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)}>
           <TabsList>
             <TabsTrigger value="chat">Chat tutor</TabsTrigger>
             <TabsTrigger value="quiz">Quiz me</TabsTrigger>
             <TabsTrigger value="study">Study session</TabsTrigger>
+            <TabsTrigger value="mindmaps" disabled={isMobile}>
+              {isMobile ? (
+                <>
+                  <Smartphone className="h-3 w-3 mr-1" />
+                  Mind Maps (Desktop only)
+                </>
+              ) : (
+                "Mind Maps"
+              )}
+            </TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
         </Tabs>
@@ -100,7 +125,7 @@ export default function Home() {
       <section className="flex flex-1 flex-col">
         <Tabs
           value={activeTab}
-          onValueChange={(value) => setActiveTab(value as keyof SessionTracker)}
+          onValueChange={(value) => setActiveTab(value as TabValue)}
         >
           <TabsContent value="chat" className="mt-0">
             <ChatPanel
@@ -124,6 +149,20 @@ export default function Home() {
                 setSessions((prev) => ({ ...prev, study: sessionId }))
               }
             />
+          </TabsContent>
+          <TabsContent value="mindmaps" className="mt-0">
+            {isMobile ? (
+              <div className="rounded-lg border bg-card p-8 text-center shadow-sm">
+                <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">Desktop Only Feature</h3>
+                <p className="text-sm text-muted-foreground">
+                  Mind mapping requires a larger screen for the best experience.
+                  Please use a desktop or tablet device to access this feature.
+                </p>
+              </div>
+            ) : (
+              <MindMapPanel documents={documents} />
+            )}
           </TabsContent>
           <TabsContent value="documents" className="mt-0">
             <div className="flex flex-col gap-4">

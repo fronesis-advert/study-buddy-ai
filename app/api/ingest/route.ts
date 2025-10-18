@@ -32,6 +32,35 @@ export async function POST(request: NextRequest) {
       }
 
       const file = fileEntry as File;
+      
+      // Validate file size (10MB max)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > MAX_FILE_SIZE) {
+        return new Response(
+          JSON.stringify({ error: "File too large. Maximum size is 10MB." }),
+          { status: 413 }
+        );
+      }
+
+      // Validate MIME type
+      const ALLOWED_MIME_TYPES = [
+        "application/pdf",
+        "text/plain",
+        "text/markdown",
+        "text/csv",
+        "application/json",
+        "application/x-ndjson",
+      ];
+      
+      if (!ALLOWED_MIME_TYPES.includes(file.type) && !file.type.startsWith("text/")) {
+        return new Response(
+          JSON.stringify({ 
+            error: `Unsupported file type: ${file.type}. Allowed types: PDF, TXT, MD, CSV, JSON` 
+          }),
+          { status: 415 }
+        );
+      }
+
       const title = titleInput || file.name || "Untitled";
       const buffer = Buffer.from(await file.arrayBuffer());
       const text = await extractTextFromFile(buffer, file.type);

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     req.headers.get("cf-connecting-ip") ??
     "global";
 
-  const limit = applyRateLimit(`chat:${ip}`, { limit: 60, windowMs: 60_000 });
+  const limit = await applyRateLimit(`chat:${ip}`, { limit: 60, windowMs: 60_000 });
   if (!limit.success) {
     return new Response(
       JSON.stringify({ error: "Rate limit exceeded. Try again soon." }),
@@ -96,7 +96,6 @@ export async function POST(req: NextRequest) {
           )
           .join("\n\n")
       : "";
-
   const systemPrompt = contextText
     ? `${STUDY_BUDDY_PROMPT}\n\nUse the provided sources to ground your answer. Cite sources inline using [S#].\n\nSources:\n${contextText}`
     : STUDY_BUDDY_PROMPT;
