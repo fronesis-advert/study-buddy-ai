@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Favicon Generator - Study Buddy</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f3f4f6;
+    }
+    h1 { color: #6366f1; }
+    .preview {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin: 20px 0;
+      text-align: center;
+    }
+    canvas {
+      border: 2px solid #6366f1;
+      border-radius: 8px;
+      image-rendering: crisp-edges;
+      image-rendering: pixelated;
+    }
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover { background: #4f46e5; }
+    .instructions {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📚 Study Buddy Favicon Generator</h1>
+  
+  <div class="note">
+    <strong>Quick Note:</strong> Next.js will automatically use <code>app/icon.svg</code> as your favicon! 
+    But you can generate an ICO file here for older browser compatibility.
+  </div>
+
+  <div class="instructions">
+    <h3>Option 1: Let Next.js Handle It (Recommended)</h3>
+    <p>✅ Already done! The <code>app/icon.svg</code> file will be automatically used.</p>
+    <p>Next.js 14 automatically converts it to all needed formats.</p>
+  </div>
+
+  <div class="instructions">
+    <h3>Option 2: Generate ICO File (Optional)</h3>
+    <ol>
+      <li>Click "Generate Favicon" below</li>
+      <li>Click "Download favicon.ico"</li>
+      <li>Place it in your <code>app</code> folder</li>
+      <li>Replace the empty favicon.ico file</li>
+    </ol>
+  </div>
+
+  <div class="preview">
+    <h3>Preview (32x32)</h3>
+    <canvas id="canvas" width="32" height="32"></canvas>
+    <br>
+    <button onclick="generateFavicon()">Generate Favicon</button>
+    <button id="download" onclick="downloadFavicon()" style="display:none;">Download favicon.ico</button>
+  </div>
+
+  <div class="instructions">
+    <h3>Option 3: Use Online Tool</h3>
+    <p>Visit: <a href="https://realfavicongenerator.net/" target="_blank">RealFaviconGenerator.net</a></p>
+    <p>Upload any image and get all favicon formats!</p>
+  </div>
+
+  <script>
+    function generateFavicon() {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, 32, 32);
+      
+      // Create gradient background
+      const gradient = ctx.createLinearGradient(0, 0, 32, 32);
+      gradient.addColorStop(0, '#6366f1');
+      gradient.addColorStop(1, '#8b5cf6');
+      
+      // Draw rounded rectangle
+      ctx.fillStyle = gradient;
+      roundRect(ctx, 0, 0, 32, 32, 6);
+      ctx.fill();
+      
+      // Draw notebook lines
+      ctx.fillStyle = 'white';
+      ctx.fillRect(5, 6, 22, 3);
+      ctx.globalAlpha = 0.8;
+      ctx.fillRect(5, 11, 22, 3);
+      ctx.globalAlpha = 0.6;
+      ctx.fillRect(5, 16, 15, 3);
+      
+      // Draw checkmark circle
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#10b981';
+      ctx.beginPath();
+      ctx.arc(24, 24, 5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw checkmark
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(21, 24);
+      ctx.lineTo(23, 26);
+      ctx.lineTo(27, 22);
+      ctx.stroke();
+      
+      document.getElementById('download').style.display = 'inline-block';
+    }
+    
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+    
+    function downloadFavicon() {
+      const canvas = document.getElementById('canvas');
+      
+      // Create a temporary canvas for ICO format (16x16 is standard)
+      const ico16 = document.createElement('canvas');
+      ico16.width = 16;
+      ico16.height = 16;
+      const ctx16 = ico16.getContext('2d');
+      ctx16.drawImage(canvas, 0, 0, 32, 32, 0, 0, 16, 16);
+      
+      // Download as PNG (browsers handle ICO conversion)
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'favicon.ico';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+    
+    // Generate on load
+    window.onload = generateFavicon;
+  </script>
+</body>
+</html>

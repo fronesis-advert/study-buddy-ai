@@ -29,8 +29,12 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/icon-192x192.png",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" }
+    ],
     apple: "/icon-192x192.png",
+    shortcut: "/favicon.ico",
   },
   viewport: {
     width: "device-width",
