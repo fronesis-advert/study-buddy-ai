@@ -16,6 +16,7 @@ import FlashcardList from "@/components/flashcards/FlashcardList";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFoldable } from "@/hooks/use-foldable";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { UserMenu } from "@/components/auth/user-menu";
@@ -27,7 +28,8 @@ import {
   BookOpen, 
   Brain, 
   FileText, 
-  Map 
+  Map,
+  Info 
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
@@ -155,6 +157,21 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {/* Guest Mode Banner */}
+        {!user && (
+          <Alert className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+              <strong>Try Study Buddy for free!</strong> You're exploring as a guest. 
+              <Link href="/signup" className="ml-1 font-semibold underline underline-offset-2 hover:text-blue-600">
+                Sign up
+              </Link>
+              {" "}to save your work, create flashcards, and track your progress.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Separator className="hidden md:block" />
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="hidden md:block">
           <TabsList className="flex w-full flex-nowrap gap-1 overflow-x-auto rounded-full border bg-muted/30 p-1 text-xs shadow-inner sm:gap-2 sm:text-sm md:justify-center">

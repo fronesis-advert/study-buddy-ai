@@ -92,6 +92,17 @@ export async function POST(request: NextRequest) {
       headers.set("x-studybuddy-session", sessionId);
     }
 
+    // Require authentication to save flashcard decks permanently
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Authentication required",
+          message: "Please sign in to save flashcard decks permanently."
+        }),
+        { status: 401, headers }
+      );
+    }
+
     const body = await request.json();
     const { name, description, document_id } = body;
 

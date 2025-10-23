@@ -48,6 +48,17 @@ export async function POST(request: NextRequest) {
     const supabase = getServiceSupabaseClient();
     const userId = await getCurrentUserId();
 
+    // Require authentication to create mind maps
+    if (!userId) {
+      return NextResponse.json(
+        { 
+          error: "Authentication required",
+          message: "Please sign in to save mind maps."
+        },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { title, description, template } = body;
 

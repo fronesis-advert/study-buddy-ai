@@ -6,46 +6,16 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
   
-  // Get the current session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // Refresh session for all requests (authenticated or not)
+  await supabase.auth.getSession();
 
   // Skip middleware for API routes - they handle their own auth
   if (req.nextUrl.pathname.startsWith("/api/")) {
     return res;
   }
 
-  // Define public paths that don't require authentication
-  const publicPaths = [
-    "/login",
-    "/signup",
-    "/auth/callback",
-    "/icon.svg",
-    "/favicon.ico",
-  ];
-
-  const isPublicPath = publicPaths.some((path) =>
-    req.nextUrl.pathname.startsWith(path)
-  );
-
-  // Allow public paths
-  if (isPublicPath) {
-    // If user is logged in and tries to access login/signup, redirect to home
-    if (session && (req.nextUrl.pathname === "/login" || req.nextUrl.pathname === "/signup")) {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-    return res;
-  }
-
-  // Protect all other routes - require authentication
-  if (!session) {
-    // Store the original URL to redirect back after login
-    const redirectUrl = new URL("/login", req.url);
-    redirectUrl.searchParams.set("redirectTo", req.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
+  // All routes are now public - users can explore the app
+  // Authentication is only required when trying to save data (handled in API routes)
   return res;
 }
 

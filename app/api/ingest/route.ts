@@ -19,6 +19,17 @@ export async function POST(request: NextRequest) {
     const userId = await getCurrentUserId();
     console.log("User ID:", userId);
 
+    // Require authentication to upload documents
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Authentication required",
+          message: "Please sign in to upload documents and save your work."
+        }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       const fileEntry = formData.get("file");
