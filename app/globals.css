@@ -98,3 +98,65 @@ body {
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+/* Foldable device support */
+@media (horizontal-viewport-segments: 2) {
+  .foldable-device {
+    /* Dual screen - vertical fold (book mode) */
+    display: flex;
+    flex-direction: row;
+  }
+  
+  .foldable-device > * {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (vertical-viewport-segments: 2) {
+  .foldable-device {
+    /* Dual screen - horizontal fold (laptop mode) */
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .foldable-device > * {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+/* Samsung Galaxy Fold and similar devices */
+@media screen and (min-width: 653px) and (max-width: 717px) {
+  .foldable-device .react-flow {
+    /* Optimize canvas for folded state */
+    min-height: 100%;
+  }
+}
+
+/* Surface Duo specific */
+@media (min-width: 540px) and (max-width: 720px) and (orientation: landscape) {
+  .foldable-device {
+    /* Optimize for dual-screen landscape */
+    gap: 1rem;
+  }
+}
+
+/* Foldable-specific mind map optimizations */
+.foldable-device .react-flow__viewport {
+  /* Better touch targets for foldables */
+  touch-action: manipulation;
+}
+
+.foldable-device .react-flow__node {
+  /* Slightly larger nodes on foldables */
+  min-width: 180px;
+}
+
+/* Avoid content in the fold area */
+@supports (env(viewport-segment-width 0 0)) {
+  .foldable-aware {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}

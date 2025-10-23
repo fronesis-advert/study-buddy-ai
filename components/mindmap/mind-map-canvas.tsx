@@ -44,6 +44,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
+import { useFoldableLayout } from "@/hooks/use-foldable";
 
 const nodeTypes = {
   custom: CustomNode,
@@ -108,6 +109,7 @@ export function MindMapCanvas({
   const nodesRef = useRef<Node<MindMapNodeData>[]>([]);
   const edgesRef = useRef<Edge[]>([]);
   const { fitView, zoomIn, zoomOut } = useReactFlow();
+  const foldableLayout = useFoldableLayout();
 
   // Convert database nodes to ReactFlow nodes
   useEffect(() => {
@@ -538,7 +540,9 @@ export function MindMapCanvas({
   return (
     <div className={cn(
       "flex gap-3 h-full",
-      isFullscreen && "fixed inset-0 z-50 bg-background p-4"
+      isFullscreen && "fixed inset-0 z-50 bg-background p-4",
+      foldableLayout.layout === "dual-horizontal" && "flex-col",
+      foldableLayout.isFoldable && "foldable-device"
     )}>
       <div className="flex flex-col gap-3 flex-1">
         <MindMapToolbar
