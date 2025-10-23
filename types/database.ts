@@ -312,7 +312,57 @@ export type Database = {
             foreignKeyName: "mind_map_edges_target_node_id_fkey"
             columns: ["target_node_id"]
             isOneToOne: false
-            referencedRelation: "mind_map_nodes"
+            referencedRelation: "mind_maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mind_map_groups: {
+        Row: {
+          color: string
+          created_at: string | null
+          height: number
+          id: string
+          label: string
+          mind_map_id: string
+          position_x: number
+          position_y: number
+          updated_at: string | null
+          width: number
+          z_index: number | null
+        }
+        Insert: {
+          color?: string
+          created_at?: string | null
+          height?: number
+          id?: string
+          label: string
+          mind_map_id: string
+          position_x: number
+          position_y: number
+          updated_at?: string | null
+          width?: number
+          z_index?: number | null
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          height?: number
+          id?: string
+          label?: string
+          mind_map_id?: string
+          position_x?: number
+          position_y?: number
+          updated_at?: string | null
+          width?: number
+          z_index?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mind_map_groups_mind_map_id_fkey"
+            columns: ["mind_map_id"]
+            isOneToOne: false
+            referencedRelation: "mind_maps"
             referencedColumns: ["id"]
           },
         ]
@@ -321,6 +371,7 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string | null
+          group_id: string | null
           id: string
           label: string
           mind_map_id: string | null
@@ -332,6 +383,7 @@ export type Database = {
         Insert: {
           content?: string | null
           created_at?: string | null
+          group_id?: string | null
           id?: string
           label: string
           mind_map_id?: string | null
@@ -343,6 +395,7 @@ export type Database = {
         Update: {
           content?: string | null
           created_at?: string | null
+          group_id?: string | null
           id?: string
           label?: string
           mind_map_id?: string | null
@@ -352,6 +405,13 @@ export type Database = {
           style?: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "mind_map_nodes_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "mind_map_groups"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mind_map_nodes_mind_map_id_fkey"
             columns: ["mind_map_id"]
@@ -745,4 +805,5 @@ export const Constants = {
 export type MindMapRow = Database["public"]["Tables"]["mind_maps"]["Row"]
 export type MindMapNodeRow = Database["public"]["Tables"]["mind_map_nodes"]["Row"]
 export type MindMapEdgeRow = Database["public"]["Tables"]["mind_map_edges"]["Row"]
+export type MindMapGroupRow = Database["public"]["Tables"]["mind_map_groups"]["Row"]
 

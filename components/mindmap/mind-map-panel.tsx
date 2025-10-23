@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Sparkles, FileText, ArrowLeft } from "lucide-react";
 import { MindMapCanvas } from "./mind-map-canvas";
-import type { MindMapNodeRow, MindMapEdgeRow } from "@/types/database";
+import type { MindMapNodeRow, MindMapEdgeRow, MindMapGroupRow } from "@/types/database";
 import type { DocumentSummary } from "@/components/documents/document-manager";
 import type { Template } from "./types";
 import { templateDescriptions } from "./types";
@@ -57,6 +57,7 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
   const [mapData, setMapData] = useState<{
     nodes: MindMapNodeRow[];
     edges: MindMapEdgeRow[];
+    groups: MindMapGroupRow[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -119,13 +120,24 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
   const fetchMindMapData = async (id: string) => {
     try {
       setLoading(true);
+      
+      // Fetch mind map data (nodes and edges)
       const response = await fetch(`/api/mindmaps/${id}`);
       if (!response.ok) throw new Error("Failed to fetch mind map data");
-
       const data = await response.json();
+
+      // Fetch groups
+      const groupsResponse = await fetch(`/api/mindmaps/${id}/groups`);
+      let groups: MindMapGroupRow[] = [];
+      if (groupsResponse.ok) {
+        const groupsData = await groupsResponse.json();
+        groups = groupsData.groups || [];
+      }
+
       setMapData({
         nodes: data.nodes,
         edges: data.edges,
+        groups,
       });
     } catch (err) {
       console.error("Error fetching mind map data:", err);
@@ -347,6 +359,7 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
             mindMapId={selectedMapId}
             initialNodes={mapData.nodes}
             initialEdges={mapData.edges}
+            initialGroups={mapData.groups}
             onSave={handleSaveMindMap}
             onExport={handleExportToDocuments}
             onRequestSuggestions={handleRequestSuggestions}

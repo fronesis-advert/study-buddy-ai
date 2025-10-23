@@ -21,12 +21,13 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 
 import CustomNode from "./custom-node";
+import GroupNode from "./group-node";
 import { NodeEditorDialog } from "./node-editor-dialog";
 import { MindMapToolbar } from "./mind-map-toolbar";
 import type { MindMapNodeData, RelationshipType } from "./types";
 import { relationshipTypeConfig, iconOptions } from "./types";
 import { Brain, Book, Lightbulb, AlertCircle, TrendingUp, Users, Star, Target, Zap, Heart, Shield, Flag, Clock, Calendar, Map, Compass, Inbox, Layers, Link, Settings } from "lucide-react";
-import type { MindMapNodeRow, MindMapEdgeRow } from "@/types/database";
+import type { MindMapNodeRow, MindMapEdgeRow, MindMapGroupRow } from "@/types/database";
 import { v4 as uuid } from "uuid";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,7 @@ import { useFoldableLayout } from "@/hooks/use-foldable";
 
 const nodeTypes = {
   custom: CustomNode,
+  group: GroupNode,
 };
 
 const nodeColors = [
@@ -65,6 +67,7 @@ type MindMapCanvasProps = {
   mindMapId: string;
   initialNodes: MindMapNodeRow[];
   initialEdges: MindMapEdgeRow[];
+  initialGroups?: MindMapGroupRow[];
   onSave: (nodes: MindMapNodeRow[], edges: MindMapEdgeRow[]) => Promise<void>;
   onExport: () => void;
   onRequestSuggestions: () => void;
@@ -82,6 +85,7 @@ export function MindMapCanvas({
   mindMapId,
   initialNodes,
   initialEdges,
+  initialGroups = [],
   onSave,
   onExport,
   onRequestSuggestions,
@@ -111,8 +115,27 @@ export function MindMapCanvas({
   const { fitView, zoomIn, zoomOut } = useReactFlow();
   const foldableLayout = useFoldableLayout();
 
-  // Convert database nodes to ReactFlow nodes
+  // Convert database nodes and groups to ReactFlow nodes
   useEffect(() => {
+    // Convert group nodes (background boxes)
+    const groupNodes: Node[] = initialGroups.map((group) => ({
+      id: group.id,
+      type: "group",
+      position: { x: group.position_x, y: group.position_y },
+      style: {
+        width: group.width,
+        height: group.height,
+        zIndex: group.z_index || 0,
+      },
+      data: {
+        label: group.label,
+        color: group.color,
+      },
+      draggable: true,
+      selectable: true,
+    }));
+
+    // Convert regular nodes
     const flowNodes: Node<MindMapNodeData>[] = initialNodes.map((node) => ({
       id: node.id,
       type: "custom",
@@ -125,6 +148,8 @@ export function MindMapCanvas({
         importance: (node as any).importance || 3,
         icon: (node as any).icon || undefined,
       },
+      parentNode: node.group_id || undefined, // Attach to group if exists
+      extent: node.group_id ? "parent" : undefined, // Keep within group
     }));
 
     const flowEdges: Edge[] = initialEdges
@@ -153,9 +178,10 @@ export function MindMapCanvas({
         };
       });
 
-    setNodes(flowNodes);
+    // Combine groups and nodes (groups first so they're in background)
+    setNodes([...groupNodes, ...flowNodes]);
     setEdges(flowEdges);
-  }, [initialNodes, initialEdges]);
+  }, [initialNodes, initialEdges, initialGroups]);
 
   useEffect(() => {
     nodesRef.current = nodes;

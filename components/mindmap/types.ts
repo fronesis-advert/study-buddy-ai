@@ -1,5 +1,5 @@
 import type { Node, Edge } from "reactflow";
-import type { MindMapRow, MindMapNodeRow, MindMapEdgeRow } from "@/types/database";
+import type { MindMapRow, MindMapNodeRow, MindMapEdgeRow, MindMapGroupRow } from "@/types/database";
 
 export type MindMapNodeData = {
   label: string;
@@ -63,6 +63,7 @@ export type MindMap = {
 export type MindMapWithData = MindMap & {
   nodes: MindMapNodeRow[];
   edges: MindMapEdgeRow[];
+  groups: MindMapGroupRow[];
 };
 
 export type Template = 
