@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useFoldable } from "@/hooks/use-foldable";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { UserMenu } from "@/components/auth/user-menu";
+import Link from "next/link";
 import { 
   Smartphone, 
   MessageSquare, 
@@ -26,6 +29,7 @@ import {
   FileText, 
   Map 
 } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 
 type SessionTracker = {
   chat?: string | null;
@@ -55,7 +59,26 @@ export default function Home() {
   const [docError, setDocError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionTracker>({});
   const [isMobile, setIsMobile] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const foldable = useFoldable();
+  const supabase = createClientComponentClient();
+
+  // Check user authentication
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    
+    getUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
 
   // Detect mobile on mount
   useEffect(() => {
@@ -116,6 +139,19 @@ export default function Home() {
               <Badge variant="secondary">
                 Session {activeSession.slice(0, 8)}
               </Badge>
+            )}
+            {/* Auth UI */}
+            {user ? (
+              <UserMenu user={user} />
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link href="/signup">Sign up</Link>
+                </Button>
+              </div>
             )}
           </div>
         </div>
