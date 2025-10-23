@@ -18,6 +18,25 @@ export const metadata: Metadata = {
   title: "Study Buddy AI",
   description:
     "Real-time tutoring, adaptive quizzes, and focused study sessions powered by OpenAI and Supabase.",
+  manifest: "/manifest.json",
+  themeColor: "#6366f1",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Study Buddy AI",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: "/icon-192x192.png",
+    apple: "/icon-192x192.png",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
 };
 
 export default function RootLayout({
