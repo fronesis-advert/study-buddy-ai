@@ -11,6 +11,11 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
+  // Skip middleware for API routes - they handle their own auth
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    return res;
+  }
+
   // Define public paths that don't require authentication
   const publicPaths = [
     "/login",
