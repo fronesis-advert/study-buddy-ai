@@ -16,6 +16,7 @@ import FlashcardList from "@/components/flashcards/FlashcardList";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useFoldable } from "@/hooks/use-foldable";
 import { 
   Smartphone, 
   MessageSquare, 
@@ -54,6 +55,7 @@ export default function Home() {
   const [docError, setDocError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionTracker>({});
   const [isMobile, setIsMobile] = useState(false);
+  const foldable = useFoldable();
 
   // Detect mobile on mount
   useEffect(() => {
@@ -64,6 +66,9 @@ export default function Home() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Check if mind maps should be available (desktop or foldable device)
+  const mindMapsAvailable = !isMobile || foldable.isFoldable;
 
   const refreshDocuments = async () => {
     try {
@@ -143,13 +148,18 @@ export default function Home() {
             </TabsTrigger>
             <TabsTrigger
               value="mindmaps"
-              disabled={isMobile}
+              disabled={!mindMapsAvailable}
               className={tabTriggerClass}
             >
-              {isMobile ? (
+              {!mindMapsAvailable ? (
                 <>
                   <Smartphone className="h-3 w-3 mr-1" />
                   Mind Maps (Desktop only)
+                </>
+              ) : foldable.isFoldable ? (
+                <>
+                  <Map className="h-3 w-3 mr-1" />
+                  Mind Maps
                 </>
               ) : (
                 "Mind Maps"
@@ -194,13 +204,13 @@ export default function Home() {
             />
           </TabsContent>
           <TabsContent value="mindmaps" className="mt-0">
-            {isMobile ? (
+            {!mindMapsAvailable ? (
               <div className="rounded-lg border bg-card p-8 text-center shadow-sm">
                 <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-lg font-semibold mb-2">Desktop Only Feature</h3>
                 <p className="text-sm text-muted-foreground">
                   Mind mapping requires a larger screen for the best experience.
-                  Please use a desktop or tablet device to access this feature.
+                  Please use a desktop, tablet, or foldable device to access this feature.
                 </p>
               </div>
             ) : (
@@ -285,6 +295,20 @@ export default function Home() {
             <Brain className="h-5 w-5" />
             <span>Cards</span>
           </button>
+          {/* Show Mind Maps on foldable devices */}
+          {foldable.isFoldable && (
+            <button
+              onClick={() => setActiveTab("mindmaps")}
+              className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors ${
+                activeTab === "mindmaps"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Map className="h-5 w-5" />
+              <span>Maps</span>
+            </button>
+          )}
           <button
             onClick={() => setActiveTab("documents")}
             className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors ${
