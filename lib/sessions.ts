@@ -1,6 +1,9 @@
 import { getServiceSupabaseClient } from "@/lib/supabase/service-client";
-import type { Json, MessageRole, SessionMode } from "@/types/database";
+import type { Json } from "@/types/database";
 import { v4 as uuid } from "uuid";
+
+export type SessionMode = "chat" | "quiz" | "study" | "flashcards";
+export type MessageRole = "system" | "user" | "assistant";
 
 type EnsureSessionArgs = {
   sessionId?: string | null;

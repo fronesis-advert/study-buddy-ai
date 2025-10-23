@@ -107,7 +107,7 @@ export async function POST(
     const chunksToInsert = chunks.map((content, idx) => ({
       document_id: document.id,
       content,
-      embedding: embeddings[idx],
+      embedding: JSON.stringify(embeddings[idx]), // Convert number[] to string for pgvector
       token_count: Math.ceil(content.length / 4), // Rough estimate
     }));
 

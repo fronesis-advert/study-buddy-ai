@@ -28,6 +28,7 @@ import { MindMapCanvas } from "./mind-map-canvas";
 import type { MindMapNodeRow, MindMapEdgeRow } from "@/types/database";
 import type { DocumentSummary } from "@/components/documents/document-manager";
 import type { Template } from "./types";
+import { templateDescriptions } from "./types";
 
 type MindMapSummary = {
   id: string;
@@ -39,6 +40,15 @@ type MindMapSummary = {
 
 type MindMapPanelProps = {
   documents: DocumentSummary[];
+};
+
+type AISuggestion = {
+  sourceId: string;
+  sourceLabel: string;
+  targetId: string;
+  targetLabel: string;
+  reason: string;
+  connectionType?: string;
 };
 
 export function MindMapPanel({ documents }: MindMapPanelProps) {
@@ -56,6 +66,13 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<Template>(null);
   const [selectedDocId, setSelectedDocId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [suggestionsDialogOpen, setSuggestionsDialogOpen] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
+  const [suggestionsMessage, setSuggestionsMessage] = useState<string | null>(null);
+  const [conceptSuggestions, setConceptSuggestions] = useState<any[]>([]);
+  const [conceptDialogOpen, setConceptDialogOpen] = useState(false);
+  const [suggestedMapTitle, setSuggestedMapTitle] = useState("");
 
   // Fetch mind maps list
   useEffect(() => {
@@ -67,6 +84,12 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
     if (selectedMapId) {
       fetchMindMapData(selectedMapId);
     }
+  }, [selectedMapId]);
+
+  useEffect(() => {
+    setSuggestionsDialogOpen(false);
+    setSuggestions([]);
+    setSuggestionsMessage(null);
   }, [selectedMapId]);
 
   const fetchMindMaps = async () => {
@@ -153,20 +176,58 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           documentId: selectedDocId,
+          mode: "suggest", // AI-assisted mode
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to generate mind map");
+      if (!response.ok) throw new Error("Failed to analyze document");
+
+      const data = await response.json();
+      
+      if (data.mode === "suggest") {
+        // Show concept suggestions for manual creation
+        setConceptSuggestions(data.concepts || []);
+        setSuggestedMapTitle(data.title);
+        setConceptDialogOpen(true);
+        setSelectedDocId("");
+      } else {
+        // Legacy auto-creation mode
+        await fetchMindMaps();
+        setSelectedMapId(data.mindMapId);
+        setSelectedDocId("");
+      }
+    } catch (err) {
+      console.error("Error analyzing document:", err);
+      setError("Failed to analyze document");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateMapFromConcepts = async () => {
+    if (!suggestedMapTitle.trim()) return;
+    
+    try {
+      // Create empty mind map first
+      const response = await fetch("/api/mindmaps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: suggestedMapTitle,
+          description: `AI-assisted mind map with ${conceptSuggestions.length} suggested concepts`,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to create mind map");
 
       const data = await response.json();
       await fetchMindMaps();
-      setSelectedMapId(data.mindMapId);
-      setSelectedDocId("");
+      setSelectedMapId(data.mindMap.id);
+      setConceptDialogOpen(false);
+      setConceptSuggestions([]);
     } catch (err) {
-      console.error("Error generating mind map:", err);
-      setError("Failed to generate mind map");
-    } finally {
-      setLoading(false);
+      console.error("Error creating mind map:", err);
+      setError("Failed to create mind map");
     }
   };
 
@@ -209,6 +270,10 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
   const handleRequestSuggestions = async () => {
     if (!selectedMapId) return;
 
+    setSuggestionsLoading(true);
+    setSuggestions([]);
+    setSuggestionsMessage(null);
+
     try {
       const response = await fetch("/api/mindmaps/suggest", {
         method: "POST",
@@ -219,20 +284,22 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
       if (!response.ok) throw new Error("Failed to get suggestions");
 
       const data = await response.json();
-      if (data.suggestions && data.suggestions.length > 0) {
-        const message = data.suggestions
-          .map(
-            (s: any) =>
-              `• ${s.sourceLabel} → ${s.targetLabel}\n  ${s.reason}`
-          )
-          .join("\n\n");
-        alert(`AI Suggestions:\n\n${message}`);
+      if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        setSuggestions(data.suggestions);
+        setSuggestionsDialogOpen(true);
       } else {
-        alert("No new connection suggestions at this time.");
+        setSuggestionsMessage("No new connection suggestions at this time.");
+        setSuggestionsDialogOpen(true);
       }
     } catch (err) {
       console.error("Error getting suggestions:", err);
-      setError("Failed to get AI suggestions");
+      setSuggestions([]);
+      setSuggestionsMessage(
+        "We couldn't generate suggestions right now. Please try again later."
+      );
+      setSuggestionsDialogOpen(true);
+    } finally {
+      setSuggestionsLoading(false);
     }
   };
 
@@ -283,8 +350,70 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
             onSave={handleSaveMindMap}
             onExport={handleExportToDocuments}
             onRequestSuggestions={handleRequestSuggestions}
+            suggestionsLoading={suggestionsLoading}
           />
         </ReactFlowProvider>
+
+        <Dialog
+          open={suggestionsDialogOpen}
+          onOpenChange={(open) => {
+            setSuggestionsDialogOpen(open);
+            if (!open) {
+              setSuggestions([]);
+              setSuggestionsMessage(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                AI Suggestions
+              </DialogTitle>
+              <DialogDescription>
+                Explore potential connections to enrich this mind map.
+              </DialogDescription>
+            </DialogHeader>
+
+            {suggestionsMessage ? (
+              <div className="rounded-md border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+                {suggestionsMessage}
+              </div>
+            ) : (
+              <ScrollArea className="max-h-[50vh] pr-2">
+                <div className="space-y-3">
+                  {suggestions.map((suggestion) => (
+                    <div
+                      key={`${suggestion.sourceId}-${suggestion.targetId}`}
+                      className="rounded-lg border bg-background p-4 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                        <span className="rounded-md bg-primary/10 px-2 py-1 text-primary">
+                          {suggestion.sourceLabel}
+                        </span>
+                        <Badge variant="outline" className="uppercase text-[10px] tracking-wide">
+                          {suggestion.connectionType ?? "relates to"}
+                        </Badge>
+                        <span className="rounded-md bg-secondary/20 px-2 py-1">
+                          {suggestion.targetLabel}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        {suggestion.reason}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+
+            {!suggestionsMessage && suggestions.length > 0 && (
+              <div className="rounded-md bg-muted/30 p-3 text-xs text-muted-foreground">
+                Tip: Use the connection tool to add links between these nodes.
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -318,14 +447,14 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
             <DialogTrigger asChild>
               <Button variant="outline" disabled={documents.length === 0}>
                 <Sparkles className="h-4 w-4 mr-1" />
-                AI Generate
+                AI Assist
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Generate Mind Map from Document</DialogTitle>
+                <DialogTitle>AI-Assisted Concept Extraction</DialogTitle>
                 <DialogDescription>
-                  AI will analyze your document and create a mind map automatically.
+                  AI will analyze your document and suggest key concepts. You'll manually create nodes for active learning.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -353,7 +482,8 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
                   Cancel
                 </Button>
                 <Button onClick={handleGenerateFromDocument} disabled={!selectedDocId}>
-                  Generate
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Analyze & Suggest
                 </Button>
               </div>
             </DialogContent>
@@ -405,11 +535,16 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Blank Canvas</SelectItem>
-                      <SelectItem value="brainstorm">Brainstorm (4 branches)</SelectItem>
-                      <SelectItem value="hierarchy">Hierarchy (tree structure)</SelectItem>
-                      <SelectItem value="studyplan">Study Plan (timeline)</SelectItem>
+                      {Object.entries(templateDescriptions).map(([key, desc]) => (
+                        <SelectItem key={key} value={key}>
+                          {desc}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Choose a template based on your learning goal
+                  </p>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -418,6 +553,105 @@ export function MindMapPanel({ documents }: MindMapPanelProps) {
                 </Button>
                 <Button onClick={handleCreateMindMap} disabled={!newMapTitle.trim()}>
                   Create
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Concept Suggestions Dialog - AI-Assisted Mode */}
+          <Dialog open={conceptDialogOpen} onOpenChange={setConceptDialogOpen}>
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  AI-Suggested Concepts
+                </DialogTitle>
+                <DialogDescription>
+                  AI has analyzed your document and extracted key concepts. Review these suggestions and manually create nodes to engage in active learning.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="rounded-lg border bg-muted/30 p-4">
+                  <h3 className="text-sm font-semibold mb-2">📚 Learning Approach</h3>
+                  <p className="text-xs text-muted-foreground">
+                    You'll create an empty mind map, then manually add nodes based on these suggestions.
+                    This active process helps you think critically about concepts and their relationships.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Suggested Title</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border px-3 py-2 text-sm"
+                    value={suggestedMapTitle}
+                    onChange={(e) => setSuggestedMapTitle(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold">
+                    {conceptSuggestions.length} Concept Suggestions
+                  </label>
+                  <ScrollArea className="h-[300px] rounded-md border p-4">
+                    <div className="space-y-3">
+                      {conceptSuggestions.map((concept, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-lg border bg-background p-3 shadow-sm"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
+                              {concept.importance}/5
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{concept.label}</div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {concept.description}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="text-xs text-muted-foreground">
+                                  Type: {concept.suggestedType}
+                                </span>
+                                {concept.suggestedIcon && (
+                                  <span className="text-xs text-muted-foreground">
+                                    • Icon: {concept.suggestedIcon}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-2">💡 Next Steps:</h4>
+                  <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+                    <li>Click "Create Empty Mind Map" below</li>
+                    <li>Use the suggestions above to manually add nodes</li>
+                    <li>Think about relationships as you connect concepts</li>
+                    <li>Keep labels brief (1-3 words)</li>
+                    <li>Rate importance to create visual hierarchy</li>
+                  </ol>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setConceptDialogOpen(false);
+                    setConceptSuggestions([]);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateMapFromConcepts}>
+                  Create Empty Mind Map
                 </Button>
               </div>
             </DialogContent>

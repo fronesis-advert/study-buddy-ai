@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { DocumentSourceType } from "@/types/database";
+
+type DocumentSourceType = "upload" | "note" | "link" | string;
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

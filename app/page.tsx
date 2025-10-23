@@ -12,18 +12,28 @@ import {
   type DocumentSummary,
 } from "@/components/documents/document-manager";
 import { MindMapPanel } from "@/components/mindmap/mind-map-panel";
+import FlashcardList from "@/components/flashcards/FlashcardList";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Smartphone } from "lucide-react";
+import { 
+  Smartphone, 
+  MessageSquare, 
+  BrainCircuit, 
+  BookOpen, 
+  Brain, 
+  FileText, 
+  Map 
+} from "lucide-react";
 
 type SessionTracker = {
   chat?: string | null;
   quiz?: string | null;
   study?: string | null;
+  flashcards?: string | null;
 };
 
-type TabValue = keyof SessionTracker | "documents" | "mindmaps";
+type TabValue = keyof SessionTracker | "documents" | "mindmaps" | "flashcards";
 
 async function fetchDocuments(): Promise<DocumentSummary[]> {
   const response = await fetch("/api/documents");
@@ -33,6 +43,9 @@ async function fetchDocuments(): Promise<DocumentSummary[]> {
   const payload = await response.json();
   return payload.documents ?? [];
 }
+
+const tabTriggerClass =
+  "whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors data-[state=active]:bg-background data-[state=active]:shadow-sm sm:px-4 sm:py-2 sm:text-sm";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabValue>("chat");
@@ -78,14 +91,14 @@ export default function Home() {
   }, [sessions, activeTab]);
 
   return (
-    <main className="flex flex-1 flex-col gap-8">
-      <header className="flex flex-col gap-4 rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="flex flex-1 flex-col gap-4 md:gap-8">
+      <header className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm md:gap-4 md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 md:gap-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
               StudyBuddy AI
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground md:text-sm">
               A single workspace for tutoring, adaptive quizzes, focused
               study sessions, and visual mind mapping.
             </p>
@@ -101,13 +114,38 @@ export default function Home() {
             )}
           </div>
         </div>
-        <Separator />
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)}>
-          <TabsList>
-            <TabsTrigger value="chat">Chat tutor</TabsTrigger>
-            <TabsTrigger value="quiz">Quiz me</TabsTrigger>
-            <TabsTrigger value="study">Study session</TabsTrigger>
-            <TabsTrigger value="mindmaps" disabled={isMobile}>
+        <Separator className="hidden md:block" />
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="hidden md:block">
+          <TabsList className="flex w-full flex-nowrap gap-1 overflow-x-auto rounded-full border bg-muted/30 p-1 text-xs shadow-inner sm:gap-2 sm:text-sm md:justify-center">
+            <TabsTrigger
+              value="chat"
+              className={tabTriggerClass}
+            >
+              Chat tutor
+            </TabsTrigger>
+            <TabsTrigger
+              value="quiz"
+              className={tabTriggerClass}
+            >
+              Quiz me
+            </TabsTrigger>
+            <TabsTrigger
+              value="study"
+              className={tabTriggerClass}
+            >
+              Study session
+            </TabsTrigger>
+            <TabsTrigger
+              value="flashcards"
+              className={tabTriggerClass}
+            >
+              Flashcards
+            </TabsTrigger>
+            <TabsTrigger
+              value="mindmaps"
+              disabled={isMobile}
+              className={tabTriggerClass}
+            >
               {isMobile ? (
                 <>
                   <Smartphone className="h-3 w-3 mr-1" />
@@ -117,12 +155,17 @@ export default function Home() {
                 "Mind Maps"
               )}
             </TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger
+              value="documents"
+              className={tabTriggerClass}
+            >
+              Documents
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </header>
 
-      <section className="flex flex-1 flex-col">
+      <section className="flex flex-1 flex-col pb-20 md:pb-0">
         <Tabs
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as TabValue)}
@@ -164,6 +207,14 @@ export default function Home() {
               <MindMapPanel documents={documents} />
             )}
           </TabsContent>
+          <TabsContent value="flashcards" className="mt-0">
+            <FlashcardList
+              sessionId={sessions.flashcards}
+              onSessionChange={(sessionId) =>
+                setSessions((prev) => ({ ...prev, flashcards: sessionId }))
+              }
+            />
+          </TabsContent>
           <TabsContent value="documents" className="mt-0">
             <div className="flex flex-col gap-4">
               {docError && (
@@ -186,6 +237,67 @@ export default function Home() {
           </TabsContent>
         </Tabs>
       </section>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:hidden">
+        <div className="flex items-center justify-around">
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors ${
+              activeTab === "chat"
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <MessageSquare className="h-5 w-5" />
+            <span>Chat</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("quiz")}
+            className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors ${
+              activeTab === "quiz"
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <BrainCircuit className="h-5 w-5" />
+            <span>Quiz</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("study")}
+            className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors ${
+              activeTab === "study"
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <BookOpen className="h-5 w-5" />
+            <span>Study</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("flashcards")}
+            className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors ${
+              activeTab === "flashcards"
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Brain className="h-5 w-5" />
+            <span>Cards</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("documents")}
+            className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors ${
+              activeTab === "documents"
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FileText className="h-5 w-5" />
+            <span>Docs</span>
+          </button>
+        </div>
+      </nav>
     </main>
   );
 }

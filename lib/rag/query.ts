@@ -23,9 +23,9 @@ export async function fetchRelevantChunks({
   const supabase = getServiceSupabaseClient();
 
   const { data, error } = await supabase.rpc("match_document_chunks", {
-    query_embedding: response.data[0].embedding,
+    query_embedding: JSON.stringify(response.data[0].embedding), // Convert to string for pgvector
     match_count: limit,
-    doc_ids: documentIds ?? null,
+    doc_ids: documentIds,
   });
 
   if (error) {

@@ -5,31 +5,43 @@ import {
   Plus,
   Trash2,
   Download,
-  Save,
   Sparkles,
-  Link2,
   Undo2,
   Redo2,
   ZoomIn,
   ZoomOut,
   Maximize,
+  Loader2,
+  AlertTriangle,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 type ToolbarProps = {
   onAddNode: () => void;
   onDeleteSelected: () => void;
   onExport: () => void;
   onSuggestConnections: () => void;
+  isSuggesting: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   hasSelection: boolean;
   isSaving: boolean;
+  saveStatus: "idle" | "saving" | "saved" | "error";
   lastSaved?: Date;
   nodeCount: number;
   edgeCount: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
+  islandNodes?: number;
+  onToggleFullscreen?: () => void;
+  isFullscreen?: boolean;
 };
 
 export function MindMapToolbar({
@@ -37,14 +49,23 @@ export function MindMapToolbar({
   onDeleteSelected,
   onExport,
   onSuggestConnections,
+  isSuggesting,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   hasSelection,
   isSaving,
+  saveStatus,
   lastSaved,
   nodeCount,
   edgeCount,
   onZoomIn,
   onZoomOut,
   onFitView,
+  islandNodes = 0,
+  onToggleFullscreen,
+  isFullscreen = false,
 }: ToolbarProps) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border bg-card p-3 shadow-sm">
@@ -67,9 +88,23 @@ export function MindMapToolbar({
 
         <Separator orientation="vertical" className="h-6" />
 
-        <Button onClick={onSuggestConnections} size="sm" variant="secondary">
-          <Sparkles className="h-4 w-4 mr-1" />
-          AI Suggest
+        <Button
+          onClick={onSuggestConnections}
+          size="sm"
+          variant="secondary"
+          disabled={isSuggesting}
+        >
+          {isSuggesting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4 mr-1" />
+              AI Suggest
+            </>
+          )}
         </Button>
 
         <Separator orientation="vertical" className="h-6" />
@@ -85,6 +120,40 @@ export function MindMapToolbar({
         <Button onClick={onFitView} size="sm" variant="ghost">
           <Maximize className="h-4 w-4" />
         </Button>
+
+        {onToggleFullscreen && (
+          <Button 
+            onClick={onToggleFullscreen} 
+            size="sm" 
+            variant="ghost"
+            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
+          </Button>
+        )}
+
+        <Separator orientation="vertical" className="h-6" />
+
+        <Button
+          onClick={onUndo}
+          size="sm"
+          variant="ghost"
+          disabled={!canUndo}
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={onRedo}
+          size="sm"
+          variant="ghost"
+          disabled={!canRedo}
+        >
+          <Redo2 className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Center - Stats */}
@@ -95,6 +164,12 @@ export function MindMapToolbar({
         <Badge variant="outline">
           {edgeCount} connection{edgeCount !== 1 ? "s" : ""}
         </Badge>
+        {islandNodes > 0 && (
+          <Badge variant="destructive" className="animate-pulse">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            {islandNodes} isolated
+          </Badge>
+        )}
       </div>
 
       {/* Right side - Save & Export */}
@@ -102,8 +177,22 @@ export function MindMapToolbar({
         {isSaving ? (
           <span className="text-sm text-muted-foreground">Saving...</span>
         ) : lastSaved ? (
-          <span className="text-sm text-muted-foreground">
-            Saved {formatTimeAgo(lastSaved)}
+          <span
+            className={cn(
+              "flex items-center gap-1 text-sm",
+              saveStatus === "error"
+                ? "text-destructive"
+                : "text-muted-foreground"
+            )}
+          >
+            {saveStatus === "error" ? (
+              "Autosave failed. Retry soon."
+            ) : (
+              <>
+                <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                Saved {formatTimeAgo(lastSaved)}
+              </>
+            )}
           </span>
         ) : null}
 

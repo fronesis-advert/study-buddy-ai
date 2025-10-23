@@ -82,12 +82,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const prompt = questions
+  const promptIntro =
+    "Evaluate each question independently. For every question you are given an identifier. You must return that identifier exactly in the `id` field of the breakdown entry. If an answer is blank, mark it incorrect and explain what is missing.";
+
+  const promptBody = questions
     .map((question, index) => {
       const id = String(question.id ?? `q-${index + 1}`);
       const userAnswer = parsed.answers[id] ?? "";
       return [
-        `Question ${index + 1} (${question.type ?? "unknown"})`,
+        `Question ${index + 1} (type: ${question.type ?? "unknown"})`,
+        `Identifier: ${id}`,
         `Prompt: ${question.prompt}`,
         `Expected answer: ${question.answer}`,
         `Explanation: ${question.explanation}`,
@@ -97,10 +101,12 @@ export async function POST(req: NextRequest) {
     })
     .join("\n\n");
 
+  const prompt = `${promptIntro}\n\n${promptBody}`;
+
   const { object } = await generateObject({
     model: openai("gpt-4o-mini") as any,
     system:
-      "You are an impartial auto-grader. Evaluate each answer independently and return structured JSON according to the schema.",
+      "You are an impartial auto-grader. Return structured JSON according to the schema. Always reuse the provided question identifier verbatim for each breakdown entry. Do not invent or renumber IDs.",
     prompt,
     schema: gradeSchema,
   });

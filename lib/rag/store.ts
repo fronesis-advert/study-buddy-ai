@@ -1,7 +1,9 @@
 import { createChunkRecords, RawDocument } from "@/lib/rag/chunk";
 import { sanitizeText } from "@/lib/rag/extract";
 import { getServiceSupabaseClient } from "@/lib/supabase/service-client";
-import type { Database, DocumentSourceType } from "@/types/database";
+import type { Database } from "@/types/database";
+
+type DocumentSourceType = "upload" | "note" | "link" | string;
 
 export async function ingestDocument({
   userId,
@@ -53,7 +55,7 @@ export async function ingestDocument({
     id: chunk.id,
     document_id: chunk.document_id,
     content: chunk.content,
-    embedding: chunk.embedding,
+    embedding: JSON.stringify(chunk.embedding), // Convert number[] to string for pgvector
     token_count: chunk.token_count,
   })) as Database["public"]["Tables"]["chunks"]["Insert"][];
 

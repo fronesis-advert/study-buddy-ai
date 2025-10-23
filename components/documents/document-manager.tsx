@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Trash2 } from "lucide-react";
+import { Trash2, Brain } from "lucide-react";
+import {
+  getStoredFlashcardSession,
+  storeFlashcardSession,
+} from "@/lib/flashcards/session-storage";
 
 export type DocumentSummary = {
   id: string;
@@ -31,6 +35,18 @@ export function DocumentManager({ documents, onRefresh }: DocumentManagerProps) 
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [generatingFlashcards, setGeneratingFlashcards] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(() =>
+    getStoredFlashcardSession()
+  );
+
+  const rememberSession = (response: Response) => {
+    const header = response.headers.get("x-studybuddy-session");
+    if (header && header !== sessionId) {
+      setSessionId(header);
+      storeFlashcardSession(header);
+    }
+  };
 
   const handleUpload = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -106,6 +122,37 @@ export function DocumentManager({ documents, onRefresh }: DocumentManagerProps) 
       setError(err instanceof Error ? err.message : "Failed to delete");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleGenerateFlashcards = async (doc: DocumentSummary) => {
+    try {
+      setGeneratingFlashcards(doc.id);
+      const response = await fetch("/api/flashcards/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionId ? { "x-studybuddy-session": sessionId } : {}),
+        },
+        body: JSON.stringify({
+          document_id: doc.id,
+          deck_name: `${doc.title} - Flashcards`,
+          deck_description: `AI-generated flashcards from ${doc.title}`,
+        }),
+      });
+      rememberSession(response);
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate flashcards");
+      }
+
+      alert(`✨ Generated ${data.count} flashcards! Check the Flashcards tab.`);
+    } catch (err) {
+      console.error("Flashcard generation error:", err);
+      alert(err instanceof Error ? err.message : "Failed to generate flashcards");
+    } finally {
+      setGeneratingFlashcards(null);
     }
   };
 
@@ -185,15 +232,28 @@ export function DocumentManager({ documents, onRefresh }: DocumentManagerProps) 
                       </span>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(doc.id)}
-                    disabled={deletingId === doc.id}
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleGenerateFlashcards(doc)}
+                      disabled={generatingFlashcards === doc.id}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                      title="Generate flashcards from this document"
+                    >
+                      <Brain className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(doc.id)}
+                      disabled={deletingId === doc.id}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      title="Delete document"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))
             )}

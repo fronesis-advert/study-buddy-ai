@@ -5,7 +5,7 @@ export type RawDocument = {
   id?: string;
   userId?: string | null;
   title?: string;
-  sourceType?: "upload" | "url" | "note";
+  sourceType?: "upload" | "url" | "note" | "link" | string;
   text: string;
 };
 

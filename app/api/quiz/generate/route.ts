@@ -10,12 +10,25 @@ import { fetchRelevantChunks } from "@/lib/rag/query";
 import { getServiceSupabaseClient } from "@/lib/supabase/service-client";
 import { getCurrentUserId } from "@/lib/auth";
 
-const bodySchema = z.object({
-  topic: z.string().min(1).max(200),
-  questionCount: z.coerce.number().min(3).max(10).default(5),
-  sessionId: z.string().uuid().nullish(),
-  documentIds: z.array(z.string().uuid()).optional(),
-});
+const bodySchema = z
+  .object({
+    topic: z.string().trim().max(200),
+    questionCount: z.coerce.number().min(3).max(10).default(5),
+    sessionId: z.string().uuid().nullish(),
+    documentIds: z.array(z.string().uuid()).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.topic.length === 0 &&
+      (!data.documentIds || data.documentIds.length === 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide a topic or at least one document.",
+        path: ["topic"],
+      });
+    }
+  });
 
 const quizSchema = z.object({
   questions: z
@@ -50,34 +63,90 @@ export async function POST(req: NextRequest) {
       }),
       { status: 400 }
     );
+}
+  const userId = await getCurrentUserId();
+  const supabase = getServiceSupabaseClient();
+
+  const documentIds = parsed.documentIds
+    ? Array.from(new Set(parsed.documentIds))
+    : [];
+  const hasDocuments = documentIds.length > 0;
+  const originalTopic = parsed.topic;
+  let resolvedTopic = originalTopic;
+  let documentTitles: string[] = [];
+
+  if (hasDocuments && resolvedTopic.length === 0) {
+    const { data: docs, error: docsError } = await supabase
+      .from("documents")
+      .select("title")
+      .in("id", documentIds);
+
+    if (docsError) {
+      console.error("quiz document lookup error", docsError);
+    } else if (docs) {
+      documentTitles = docs
+        .map((doc) => doc.title?.trim())
+        .filter((title): title is string => Boolean(title && title.length > 0));
+
+      if (documentTitles.length > 0) {
+        resolvedTopic = documentTitles.join(", ");
+      }
+    }
   }
 
-  const userId = await getCurrentUserId();
   const sessionId = await ensureSession({
     sessionId: parsed.sessionId,
+    userId,
     mode: "quiz",
     meta: {
-      topic: parsed.topic,
-      documentIds: parsed.documentIds ?? [],
+      topic: resolvedTopic,
+      requestedTopic: originalTopic,
+      documentIds,
+      documentTitles,
     },
   });
 
-  const contextChunks =
-    parsed.documentIds && parsed.documentIds.length > 0
-      ? await fetchRelevantChunks({
-          query: parsed.topic,
-          documentIds: parsed.documentIds,
-          limit: 8,
-        })
-      : [];
+  type RagChunk = Awaited<ReturnType<typeof fetchRelevantChunks>>[number];
+
+  let contextChunks: RagChunk[] = [];
+
+  if (hasDocuments) {
+    if (resolvedTopic.length > 0) {
+      contextChunks = await fetchRelevantChunks({
+        query: resolvedTopic,
+        documentIds,
+        limit: 8,
+      });
+    }
+
+    if (contextChunks.length === 0) {
+      const { data: fallbackChunks, error: fallbackError } = await supabase
+        .from("chunks")
+        .select("id, document_id, content")
+        .in("document_id", documentIds)
+        .order("created_at", { ascending: true })
+        .limit(8);
+
+      if (fallbackError) {
+        console.error("quiz chunk fallback error", fallbackError);
+      } else if (fallbackChunks) {
+        contextChunks = fallbackChunks.map((chunk) => ({
+          id: chunk.id,
+          document_id: chunk.document_id ?? documentIds[0] ?? chunk.id,
+          content: chunk.content,
+          similarity: 0,
+        }));
+      }
+    }
+  }
 
   const contextText =
     contextChunks.length > 0
       ? contextChunks
-          .map(
-            (chunk, index) =>
-              `[S${index + 1}] ${chunk.content}\n(Document ${chunk.document_id})`
-          )
+          .map((chunk, index) => {
+            const docId = chunk.document_id ?? documentIds[0] ?? chunk.id;
+            return `[S${index + 1}] ${chunk.content}\n(Document ${docId})`;
+          })
           .join("\n\n")
       : "";
 
@@ -85,7 +154,12 @@ export async function POST(req: NextRequest) {
     model: openai("gpt-4o-mini") as any,
     system: `You create adaptive study quizzes with concise, assessable questions. Produce well-structured JSON following the provided schema exactly.`,
     prompt: [
-      `Topic: ${parsed.topic}`,
+      resolvedTopic.length > 0
+        ? `Topic: ${resolvedTopic}`
+        : "Topic: Generate a quiz grounded in the selected study documents.",
+      documentTitles.length > 0 && originalTopic.length === 0
+        ? `Document titles: ${documentTitles.join(", ")}`
+        : "",
       `Number of questions: ${parsed.questionCount}`,
       `Difficulty: adaptive based on concepts and bloom-level variety.`,
       contextText ? `Use these sources to tailor content:\n${contextText}` : "",
@@ -109,14 +183,15 @@ export async function POST(req: NextRequest) {
       question.type === "multiple-choice" ? question.options ?? [] : undefined,
   }));
 
-  const supabase = getServiceSupabaseClient();
   const { error } = await supabase.from("quizzes").insert({
     id: quizId,
     session_id: sessionId,
     spec: {
-      topic: parsed.topic,
+      topic: resolvedTopic,
+      requestedTopic: originalTopic,
       questionCount: parsed.questionCount,
-      documentIds: parsed.documentIds ?? [],
+      documentIds,
+      documentTitles,
       generatedAt: new Date().toISOString(),
       questions,
     },
@@ -145,4 +220,5 @@ export async function POST(req: NextRequest) {
     }
   );
 }
+
 
