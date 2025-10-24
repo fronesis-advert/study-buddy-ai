@@ -18,11 +18,12 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = getServiceSupabaseClient();
     const userId = await getCurrentUserId();
+    const sessionId = request.headers.get("x-studybuddy-session");
 
-    // First check if document exists and user owns it
+    // First check if document exists
     const { data: doc, error: fetchError } = await supabase
       .from("documents")
-      .select("id, user_id")
+      .select("id, user_id, session_id")
       .eq("id", id)
       .single();
 
@@ -36,8 +37,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check ownership
-    if (doc.user_id !== userId) {
+    // Check ownership: either by user_id or session_id
+    const ownsDocument = 
+      (userId && doc.user_id === userId) ||
+      (!userId && sessionId && doc.session_id === sessionId);
+
+    if (!ownsDocument) {
       return new Response(
         JSON.stringify({ error: "Unauthorized: You don't own this document" }),
         {
@@ -74,22 +79,29 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const supabase = getServiceSupabaseClient();
   const userId = await getCurrentUserId();
+  const sessionId = req.headers.get("x-studybuddy-session");
 
-  // Build query with user filter
+  // Build query
   let query = supabase
     .from("documents")
     .select("id, title, source_type, created_at")
     .order("created_at", { ascending: false })
     .limit(50);
 
-  // Filter by user_id - only show user's documents or null (guest) documents
+  // Filter by user_id for authenticated users, or session_id for guests
   if (userId) {
     query = query.eq("user_id", userId);
+  } else if (sessionId) {
+    query = query.eq("session_id", sessionId);
   } else {
-    query = query.is("user_id", null);
+    // No user and no session - return empty list
+    return new Response(JSON.stringify({ documents: [] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const { data, error } = await query;

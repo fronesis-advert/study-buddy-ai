@@ -42,8 +42,12 @@ type SessionTracker = {
 
 type TabValue = keyof SessionTracker | "documents" | "mindmaps" | "flashcards";
 
-async function fetchDocuments(): Promise<DocumentSummary[]> {
-  const response = await fetch("/api/documents");
+async function fetchDocuments(sessionId?: string | null): Promise<DocumentSummary[]> {
+  const response = await fetch("/api/documents", {
+    headers: {
+      ...(sessionId ? { "x-studybuddy-session": sessionId } : {}),
+    },
+  });
   if (!response.ok) {
     throw new Error("Failed to load documents");
   }
@@ -60,6 +64,7 @@ export default function Home() {
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [docError, setDocError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionTracker>({});
+  const [documentSessionId, setDocumentSessionId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const foldable = useFoldable();
@@ -99,7 +104,7 @@ export default function Home() {
     try {
       console.log("🔄 Refreshing documents...");
       setLoadingDocs(true);
-      const docs = await fetchDocuments();
+      const docs = await fetchDocuments(documentSessionId);
       console.log("🔄 Fetched documents:", docs.length, docs);
       setDocuments(docs);
       setDocError(null);
@@ -114,6 +119,13 @@ export default function Home() {
   useEffect(() => {
     void refreshDocuments();
   }, []);
+
+  // Refresh documents when session changes
+  useEffect(() => {
+    if (documentSessionId) {
+      void refreshDocuments();
+    }
+  }, [documentSessionId]);
 
   const activeSession = useMemo(() => {
     if (activeTab === "documents" || activeTab === "mindmaps") return null;
@@ -295,6 +307,8 @@ export default function Home() {
               <DocumentManager
                 documents={documents}
                 onRefresh={() => refreshDocuments()}
+                onSessionChange={setDocumentSessionId}
+                isAuthenticated={!!user}
               />
             </div>
           </TabsContent>

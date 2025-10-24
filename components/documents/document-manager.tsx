@@ -25,9 +25,11 @@ export type DocumentSummary = {
 type DocumentManagerProps = {
   documents: DocumentSummary[];
   onRefresh: () => Promise<void> | void;
+  onSessionChange?: (sessionId: string) => void;
+  isAuthenticated?: boolean;
 };
 
-export function DocumentManager({ documents, onRefresh }: DocumentManagerProps) {
+export function DocumentManager({ documents, onRefresh, onSessionChange, isAuthenticated = false }: DocumentManagerProps) {
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -45,6 +47,7 @@ export function DocumentManager({ documents, onRefresh }: DocumentManagerProps) 
     if (header && header !== sessionId) {
       setSessionId(header);
       storeFlashcardSession(header);
+      onSessionChange?.(header);
     }
   };
 
@@ -62,16 +65,25 @@ export function DocumentManager({ documents, onRefresh }: DocumentManagerProps) 
 
         const response = await fetch("/api/ingest", {
           method: "POST",
+          headers: {
+            ...(sessionId ? { "x-studybuddy-session": sessionId } : {}),
+          },
           body: formData,
         });
 
+        rememberSession(response);
+
         if (!response.ok) {
-          throw new Error("Upload failed. Please try again.");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || errorData.error || "Upload failed. Please try again.");
         }
       } else if (text.trim()) {
         const response = await fetch("/api/ingest", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionId ? { "x-studybuddy-session": sessionId } : {}),
+          },
           body: JSON.stringify({
             title: title || "Untitled notes",
             text,
@@ -79,8 +91,11 @@ export function DocumentManager({ documents, onRefresh }: DocumentManagerProps) 
           }),
         });
 
+        rememberSession(response);
+
         if (!response.ok) {
-          throw new Error("Failed to ingest notes.");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || errorData.error || "Failed to ingest notes.");
         }
       } else {
         throw new Error("Provide a file or some text to upload.");
@@ -110,6 +125,9 @@ export function DocumentManager({ documents, onRefresh }: DocumentManagerProps) 
       setDeletingId(docId);
       const response = await fetch(`/api/documents?id=${docId}`, {
         method: "DELETE",
+        headers: {
+          ...(sessionId ? { "x-studybuddy-session": sessionId } : {}),
+        },
       });
 
       if (!response.ok) {
@@ -179,6 +197,10 @@ export function DocumentManager({ documents, onRefresh }: DocumentManagerProps) 
             accept=".pdf,.txt,.md,.json"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
+          <p className="text-xs text-muted-foreground">
+            Max file size: {isAuthenticated ? '50MB' : '10MB'}
+            {!isAuthenticated && ' (50MB with account)'}
+          </p>
         </div>
         <Separator />
         <div className="flex flex-col gap-2">

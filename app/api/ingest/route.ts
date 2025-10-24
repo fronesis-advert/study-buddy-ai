@@ -7,27 +7,32 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   console.log("🚀 Ingest route called!");
+  let sessionId: string | null = null;
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
   
   try {
     // Dynamically import to avoid initialization errors
     const { getCurrentUserId } = await import("@/lib/auth");
     const { ingestDocument } = await import("@/lib/rag/store");
     const { extractTextFromFile, sanitizeText } = await import("@/lib/rag/extract");
+    const { ensureSession } = await import("@/lib/sessions");
     
     const contentType = request.headers.get("content-type") ?? "";
     console.log("Content-Type:", contentType);
     const userId = await getCurrentUserId();
     console.log("User ID:", userId);
 
-    // Require authentication to upload documents
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Authentication required",
-          message: "Please sign in to upload documents and save your work."
-        }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
+    // Create or retrieve session (works for both authenticated and guest users)
+    sessionId = await ensureSession({
+      sessionId: request.headers.get("x-studybuddy-session"),
+      userId,
+      mode: "study",
+      meta: { source: "document-ingest" },
+    });
+
+    if (sessionId) {
+      headers.set("x-studybuddy-session", sessionId);
     }
 
     if (contentType.includes("multipart/form-data")) {
@@ -45,11 +50,17 @@ export async function POST(request: NextRequest) {
 
       const file = fileEntry as File;
       
-      // Validate file size (10MB max)
-      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
-      if (file.size > MAX_FILE_SIZE) {
+      // Validate file size - tiered limits based on authentication
+      const MAX_FILE_SIZE_GUEST = 10 * 1024 * 1024; // 10MB for guests
+      const MAX_FILE_SIZE_USER = 50 * 1024 * 1024; // 50MB for logged-in users
+      const maxFileSize = userId ? MAX_FILE_SIZE_USER : MAX_FILE_SIZE_GUEST;
+      const maxFileSizeMB = userId ? 50 : 10;
+      
+      if (file.size > maxFileSize) {
         return new Response(
-          JSON.stringify({ error: "File too large. Maximum size is 10MB." }),
+          JSON.stringify({ 
+            error: `File too large. Maximum size is ${maxFileSizeMB}MB${!userId ? '. Sign in for a 50MB limit.' : '.'}` 
+          }),
           { status: 413 }
         );
       }
@@ -79,6 +90,7 @@ export async function POST(request: NextRequest) {
 
       const result = await ingestDocument({
         userId,
+        sessionId,
         title,
         sourceType,
         text,
@@ -86,7 +98,7 @@ export async function POST(request: NextRequest) {
 
       return Response.json(
         { documentId: result.documentId, chunks: result.chunksPersisted },
-        { status: 201 }
+        { status: 201, headers }
       );
     }
 
@@ -105,6 +117,7 @@ export async function POST(request: NextRequest) {
 
     const result = await ingestDocument({
       userId,
+      sessionId,
       title,
       sourceType,
       text,
@@ -112,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json(
       { documentId: result.documentId, chunks: result.chunksPersisted },
-      { status: 201 }
+      { status: 201, headers }
     );
   } catch (error) {
     console.error("ingest error", error);

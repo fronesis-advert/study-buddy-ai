@@ -7,11 +7,13 @@ type DocumentSourceType = "upload" | "note" | "link" | string;
 
 export async function ingestDocument({
   userId,
+  sessionId,
   title,
   sourceType,
   text,
 }: {
   userId: string | null;
+  sessionId?: string | null;
   title: string;
   sourceType: DocumentSourceType;
   text: string;
@@ -35,6 +37,7 @@ export async function ingestDocument({
   const { error: documentError } = await supabase.from("documents").insert({
     id: documentId,
     user_id: userId,
+    session_id: sessionId,
     title,
     source_type: sourceType,
     raw_text: cleaned,
