@@ -1,22 +1,66 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
-  
-  // Refresh session for all requests (authenticated or not)
-  await supabase.auth.getSession();
+  let response = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  });
 
-  // Skip middleware for API routes - they handle their own auth
-  if (req.nextUrl.pathname.startsWith("/api/")) {
-    return res;
-  }
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          req.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: req.headers,
+            },
+          });
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name: string, options: CookieOptions) {
+          req.cookies.set({
+            name,
+            value: "",
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: req.headers,
+            },
+          });
+          response.cookies.set({
+            name,
+            value: "",
+            ...options,
+          });
+        },
+      },
+    }
+  );
+
+  // Refresh session for all requests (authenticated or not)
+  await supabase.auth.getUser();
 
   // All routes are now public - users can explore the app
   // Authentication is only required when trying to save data (handled in API routes)
-  return res;
+  return response;
 }
 
 // Configure which routes to run middleware on

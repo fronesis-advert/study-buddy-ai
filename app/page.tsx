@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFoldable } from "@/hooks/use-foldable";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@/lib/supabase/client";
 import { UserMenu } from "@/components/auth/user-menu";
 import Link from "next/link";
 import { 
@@ -73,7 +73,7 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const foldable = useFoldable();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   // Check user authentication
   useEffect(() => {
