@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { QuizPanel } from "@/components/quiz/quiz-panel";
@@ -64,7 +64,12 @@ export default function Home() {
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [docError, setDocError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionTracker>({});
-  const [documentSessionId, setDocumentSessionId] = useState<string | null>(null);
+  const [documentSessionId, setDocumentSessionId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return window.localStorage.getItem('studybuddy.flashcards.session');
+    }
+    return null;
+  });
   const [isMobile, setIsMobile] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const foldable = useFoldable();
@@ -116,12 +121,18 @@ export default function Home() {
     }
   };
 
+  // Fetch documents on initial load
   useEffect(() => {
     void refreshDocuments();
   }, []);
 
-  // Refresh documents when session changes
+  // Refresh documents when session changes (skip initial render)
+  const isInitialMount = useRef(true);
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     if (documentSessionId) {
       void refreshDocuments();
     }
