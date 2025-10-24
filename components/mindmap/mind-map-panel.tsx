@@ -25,9 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Sparkles, FileText, ArrowLeft } from "lucide-react";
 import { MindMapCanvas } from "./mind-map-canvas";
-import type { MindMapNodeRow, MindMapEdgeRow, MindMapGroupRow } from "@/types/database";
 import type { DocumentSummary } from "@/components/documents/document-manager";
-import type { Template } from "./types";
+import type { Template, MindMapNodeRow, MindMapEdgeRow, MindMapGroupRow } from "./types";
 import { templateDescriptions } from "./types";
 
 type MindMapSummary = {

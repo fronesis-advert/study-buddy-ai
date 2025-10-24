@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceSupabaseClient } from "@/lib/supabase/service-client";
 import { getCurrentUserId } from "@/lib/auth";
-import type { MindMapRow } from "@/types/database";
 
 // GET /api/mindmaps - List all mind maps for the user
 export async function GET(request: NextRequest) {

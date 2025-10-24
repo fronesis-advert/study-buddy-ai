@@ -1,5 +1,11 @@
 import type { Node, Edge } from "reactflow";
-import type { MindMapRow, MindMapNodeRow, MindMapEdgeRow, MindMapGroupRow } from "@/types/database";
+import type { Database } from "@/types/database";
+
+// Type aliases for mind map database rows
+export type MindMapRow = Database['public']['Tables']['mind_maps']['Row'];
+export type MindMapNodeRow = Database['public']['Tables']['mind_map_nodes']['Row'];
+export type MindMapEdgeRow = Database['public']['Tables']['mind_map_edges']['Row'];
+export type MindMapGroupRow = Database['public']['Tables']['mind_map_groups']['Row'];
 
 export type MindMapNodeData = {
   label: string;
