@@ -189,7 +189,7 @@ function CustomNode({ data, selected }: NodeProps<MindMapNodeData>) {
               </div>
             )}
           </div>
-          {data.content && data.nodeType !== "note" && (
+          {data.content && (
             <div className="text-xs text-gray-600 mt-1 line-clamp-2">
               {data.content}
             </div>
