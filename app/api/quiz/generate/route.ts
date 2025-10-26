@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
 
   const { object } = await generateObject({
     model: openai("gpt-4o-mini") as any,
-    system: `You create adaptive study quizzes with concise, assessable questions. Produce well-structured JSON following the provided schema exactly.`,
+    system: `You create adaptive study quizzes with concise, assessable questions. Produce well-structured JSON following the provided schema exactly. Each question MUST include a difficulty field set to "easy", "medium", or "hard".`,
     prompt: [
       resolvedTopic.length > 0
         ? `Topic: ${resolvedTopic}`
@@ -161,7 +161,8 @@ export async function POST(req: NextRequest) {
         ? `Document titles: ${documentTitles.join(", ")}`
         : "",
       `Number of questions: ${parsed.questionCount}`,
-      `Difficulty: adaptive based on concepts and bloom-level variety.`,
+      `Difficulty: Mix of easy, medium, and hard questions based on concepts and bloom-level variety.`,
+      `IMPORTANT: Each question must have a difficulty field ("easy", "medium", or "hard").`,
       contextText ? `Use these sources to tailor content:\n${contextText}` : "",
       `Include a blend of multiple-choice and short-answer questions when appropriate.`,
       `Provide a clear explanation for each answer.`,
